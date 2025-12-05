@@ -6,35 +6,49 @@
 import asyncio
 import re
 import os
+import datetime
 from pyrogram import Client
 from report import send_report
 
+# --- CONFIGURATION ---
+NOTIFY_GROUP = "oxygenops"  # The group to notify
+NOTIFY_MSG = "My Lord @oxeign"  # The message to send
+
 def parse_message_url(url: str):
     url = url.strip()
-    # Regex to extract Chat Username/ID and Message ID
     m = re.search(r"(?:t\.me|telegram\.me)/(c/)?([^/]+)/?(\d+)?", url)
     if not m:
         raise ValueError("Invalid message URL format.")
     
-    c_group = m.group(1) # 'c/' if it's a private ID based link
-    part = m.group(2)    # Username or ID
-    msg = m.group(3)     # Message ID
+    c_group = m.group(1) 
+    part = m.group(2)    
+    msg = m.group(3)     
 
     if msg:
         message_id = int(msg)
         if c_group == "c/":
-            # If it's a private link like t.me/c/12345/67
             chat_id = int("-100" + part)
         else:
-            # Public username or ID
             chat_id = part if not part.isdigit() else int(part)
     else:
         raise ValueError("Message ID missing in URL.")
     
     return chat_id, message_id
 
+async def notify_sessions(clients, status):
+    """
+    Makes all sessions send a notification message to the defined group.
+    """
+    print(f"\n>> Sending '{status}' notification to @{NOTIFY_GROUP}...")
+    for i, c in enumerate(clients):
+        try:
+            full_msg = f"{NOTIFY_MSG} - {status}"
+            await c.send_message(NOTIFY_GROUP, full_msg)
+        except Exception as e:
+            print(f"   Session #{i+1} failed to notify: {e}")
+
 async def run():
-    print(f"\n--- OxyReport (Direct Mode) ---\n")
+    print(f"\n--- OxyReport (Updated Mode) ---\n")
 
     # --- STEP 1: INPUT API KEYS ---
     print("--- Login Configuration ---")
@@ -65,7 +79,6 @@ async def run():
             sessions.append(sess_str)
             print(f"Session #{len(sessions)} added.")
         
-        # Ask if user wants to add more
         choice = input("Do you want to add another session? (y/n): ").strip().lower()
         if choice != 'y':
             break
@@ -83,19 +96,26 @@ async def run():
         except Exception as e:
             print(f"Invalid URL: {e}")
 
-    # --- STEP 4: REPORT REASON ---
+    # --- STEP 4: REPORT DETAILS ---
     print("\nSelect Report Reason:")
     print("1. Spam")
     print("2. Violence")
     print("3. Child Abuse")
     print("4. Pornography")
     print("5. Fake Account")
-    print("6. Other")
+    print("6. Illegal Drugs")
+    print("7. Personal Details")
+    print("8. Other")
     
-    reason_code = input("Enter choice (1-6): ").strip()
-    if reason_code not in ['1', '2', '3', '4', '5', '6']:
+    reason_code = input("Enter choice (1-8): ").strip()
+    if reason_code not in ['1', '2', '3', '4', '5', '6', '7', '8']:
         print("Invalid choice. Defaulting to Spam (1).")
         reason_code = '1'
+        
+    # New Input: Report Description text
+    reason_text = input("Enter the Report Description (What to write in report box): ").strip()
+    if not reason_text:
+        reason_text = "Reported via OxyReport"
 
     # --- STEP 5: NUMBER OF REPORTS ---
     try:
@@ -110,14 +130,13 @@ async def run():
 
     for idx, sess_str in enumerate(sessions):
         try:
-            # We use the user-provided API Keys here
             c = Client(
                 name=f"temp_sess_{idx}",
                 api_id=user_api_id,
                 api_hash=user_api_hash,
                 session_string=sess_str,
                 in_memory=True,
-                no_updates=True # Faster, we don't need to listen to messages
+                no_updates=True
             )
             await c.start()
             active_clients.append(c)
@@ -129,35 +148,59 @@ async def run():
         print("No sessions could connect. Exiting.")
         return
 
+    # --- START NOTIFICATION ---
+    # All sessions send "My Lord @oxeign - Started"
+    await notify_sessions(active_clients, "Started Mission")
+
     # --- START REPORTING ---
-    print(f"\nStarting {total_reports} reports using {len(active_clients)} active sessions...")
+    start_time = datetime.datetime.now()
+    print(f"\n{'='*40}")
+    print(f"Target: {msg_url}")
+    print(f"Reports: {total_reports}")
+    print(f"Start Time: {start_time.strftime('%H:%M:%S')}")
+    print(f"{'='*40}\n")
     
     count = 0
     client_idx = 0
     
     try:
         while count < total_reports:
-            # Round-robin selection of clients
             current_client = active_clients[client_idx % len(active_clients)]
             
-            try:
-                await send_report(current_client, chat_id, message_id, reason_code)
+            # Pass reason_text to the report function
+            success = await send_report(current_client, chat_id, message_id, reason_code, reason_text)
+            
+            if success:
                 count += 1
                 print(f"[{count}/{total_reports}] Report sent from Session #{(client_idx % len(active_clients)) + 1}")
-            except Exception as e:
-                # If a specific client fails, we just print and continue to next
-                print(f"Error on Session #{(client_idx % len(active_clients)) + 1}: {e}")
+            else:
+                print(f"[FAIL] Session #{(client_idx % len(active_clients)) + 1} failed to report.")
             
             client_idx += 1
-            await asyncio.sleep(0.5) # Slight delay to prevent immediate floodwait
+            await asyncio.sleep(0.5) 
             
     except KeyboardInterrupt:
         print("\nProcess stopped by user.")
     finally:
+        end_time = datetime.datetime.now()
+        
+        # --- STATS SUMMARY ---
+        print(f"\n{'='*40}")
+        print("REPORTING SUMMARY")
+        print(f"Target Link : {msg_url}")
+        print(f"Total Sent  : {count}")
+        print(f"Start Time  : {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"End Time    : {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"{'='*40}")
+
+        # --- END NOTIFICATION ---
+        # All sessions send "My Lord @oxeign - Finished"
+        await notify_sessions(active_clients, "Finished Mission")
+
         print("\nStopping sessions...")
         for c in active_clients:
             await c.stop()
-        print("Finished.")
+        print("Goodbye.")
 
 if __name__ == "__main__":
     asyncio.run(run())
