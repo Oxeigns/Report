@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # main.py
 # OxyReport - Fully Streamlined & Config-Free
-# Modified by @oxeign request
+# Modified: Notification system removed (Termux Only)
 
 import asyncio
 import re
@@ -10,9 +10,8 @@ import datetime
 from pyrogram import Client
 from report import send_report
 
-# --- CONFIGURATION ---
-NOTIFY_GROUP = "oxygenops"  # The group to notify
-NOTIFY_MSG = "My Lord @oxeign"  # The message to send
+# --- CONFIGURATION REMOVED ---
+# Ab yahan koi log channel set karne ki zarurat nahi hai.
 
 def parse_message_url(url: str):
     url = url.strip()
@@ -35,20 +34,8 @@ def parse_message_url(url: str):
     
     return chat_id, message_id
 
-async def notify_sessions(clients, status):
-    """
-    Makes all sessions send a notification message to the defined group.
-    """
-    print(f"\n>> Sending '{status}' notification to @{NOTIFY_GROUP}...")
-    for i, c in enumerate(clients):
-        try:
-            full_msg = f"{NOTIFY_MSG} - {status}"
-            await c.send_message(NOTIFY_GROUP, full_msg)
-        except Exception as e:
-            print(f"   Session #{i+1} failed to notify: {e}")
-
 async def run():
-    print(f"\n--- OxyReport (Updated Mode) ---\n")
+    print(f"\n--- OxyReport (Silent Mode) ---\n")
 
     # --- STEP 1: INPUT API KEYS ---
     print("--- Login Configuration ---")
@@ -118,8 +105,13 @@ async def run():
         reason_text = "Reported via OxyReport"
 
     # --- STEP 5: NUMBER OF REPORTS ---
+    # Yahan aap decide kar sakte hain kitni reports bhejni hain
     try:
-        total_reports = int(input("\nHow many total reports to send? ").strip())
+        report_input = input("\nHow many total reports to send? (Default 10): ").strip()
+        if report_input:
+            total_reports = int(report_input)
+        else:
+            total_reports = 10
     except:
         print("Invalid number. Defaulting to 10.")
         total_reports = 10
@@ -148,15 +140,11 @@ async def run():
         print("No sessions could connect. Exiting.")
         return
 
-    # --- START NOTIFICATION ---
-    # All sessions send "My Lord @oxeign - Started"
-    await notify_sessions(active_clients, "Started Mission")
-
     # --- START REPORTING ---
     start_time = datetime.datetime.now()
     print(f"\n{'='*40}")
     print(f"Target: {msg_url}")
-    print(f"Reports: {total_reports}")
+    print(f"Reports to Send: {total_reports}")
     print(f"Start Time: {start_time.strftime('%H:%M:%S')}")
     print(f"{'='*40}\n")
     
@@ -186,16 +174,13 @@ async def run():
         
         # --- STATS SUMMARY ---
         print(f"\n{'='*40}")
-        print("REPORTING SUMMARY")
+        print("✅ MISSION COMPLETED") # Termux Message Only
+        print(f"{'='*40}")
         print(f"Target Link : {msg_url}")
         print(f"Total Sent  : {count}")
         print(f"Start Time  : {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"End Time    : {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*40}")
-
-        # --- END NOTIFICATION ---
-        # All sessions send "My Lord @oxeign - Finished"
-        await notify_sessions(active_clients, "Finished Mission")
 
         print("\nStopping sessions...")
         for c in active_clients:
