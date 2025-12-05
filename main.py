@@ -143,7 +143,7 @@ async def run():
                 await c.stop()
             except:
                 pass
-        print("Done. Modified by Gemini")
+        print("Done. Modified by oxeign")
 
 if __name__ == "__main__":
     asyncio.run(run())
