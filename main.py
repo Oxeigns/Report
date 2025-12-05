@@ -107,14 +107,14 @@ async def run():
     # --- STEP 5: NUMBER OF REPORTS ---
     # Yahan aap decide kar sakte hain kitni reports bhejni hain
     try:
-        report_input = input("\nHow many total reports to send? (Default 10): ").strip()
+        report_input = input("\nHow many total reports to send? (Default 5000): ").strip()
         if report_input:
             total_reports = int(report_input)
         else:
-            total_reports = 10
+            total_reports = 5000
     except:
-        print("Invalid number. Defaulting to 10.")
-        total_reports = 10
+        print("Invalid number. Defaulting to 5000.")
+        total_reports = 5000
 
     # --- INITIALIZE CLIENTS ---
     active_clients = []
