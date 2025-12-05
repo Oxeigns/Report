@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # main.py
 # OxyReport - Termux friendly
-# Modified to send Reports instead of Reactions
+# Modified: Ask API keys and Session directly
 
 import asyncio
 import re
 import os
 from pyrogram import Client
-from config import API_ID, API_HASH, DEVELOPER
-# Import report function instead of reaction
+# Report function import waisa hi rakha hai
 from report import send_report 
 
 def parse_message_url(url: str):
@@ -31,37 +30,46 @@ def parse_message_url(url: str):
     return chat_id, message_id
 
 async def run():
-    print(f"\n--- OxyReport (Termux) — developed by {DEVELOPER} ---\n")
+    print(f"\n--- OxyReport (Direct Mode) ---\n")
 
-    # If sessions.txt exists, read sessions from it.
-    sessions = []
-    sessions_file = "sessions.txt"
-    if os.path.isfile(sessions_file):
-        with open(sessions_file, "r", encoding="utf-8") as f:
-            for line in f:
-                s = line.strip()
-                if s:
-                    sessions.append(s)
-        print(f"Loaded {len(sessions)} sessions from {sessions_file}.")
-    else:
-        print("No sessions.txt found — switch to interactive mode.")
-        print("Enter Pyrogram session strings (unlimited). When done press ENTER on empty line.\n")
-        i = 1
-        while True:
-            try:
-                s = input(f"Session {i}: ").strip()
-            except EOFError:
-                s = ""
-            if s == "":
-                break
-            sessions.append(s)
-            i += 1
-
-    if len(sessions) == 0:
-        print("No sessions provided. Please create sessions.txt.")
+    # STEP 1: API ID aur HASH input lo
+    try:
+        api_id_input = input("Enter API ID: ").strip()
+        if not api_id_input:
+            print("API ID zaruri hai!")
+            return
+        user_api_id = int(api_id_input)
+        
+        user_api_hash = input("Enter API HASH: ").strip()
+        if not user_api_hash:
+            print("API HASH zaruri hai!")
+            return
+    except ValueError:
+        print("Error: API ID number hona chahiye.")
         return
 
-    # Message URL input
+    # STEP 2: Sessions input lo (Directly)
+    sessions = []
+    print("\n--- Paste Pyrogram Session Strings ---")
+    print("(Ek session paste karke Enter dabayein. Jab done ho jaye to khali Enter dabayein)")
+    
+    i = 1
+    while True:
+        try:
+            s = input(f"Session String {i}: ").strip()
+        except EOFError:
+            s = ""
+        
+        if s == "":
+            break
+        sessions.append(s)
+        i += 1
+
+    if len(sessions) == 0:
+        print("Koi session nahi diya gaya. Exiting.")
+        return
+
+    # STEP 3: Message URL Input
     msg_url = input("\nEnter message URL (t.me/...): ").strip()
     try:
         chat_id, message_id = parse_message_url(msg_url)
@@ -69,7 +77,7 @@ async def run():
         print("URL error:", e)
         return
 
-    # Number of reports
+    # STEP 4: Number of Reports
     try:
         total_reports = int(input("\nHow many reports to send? ").strip())
         if total_reports <= 0:
@@ -79,7 +87,7 @@ async def run():
         print("Invalid number.")
         return
 
-    # REASON SELECTION MENU
+    # STEP 5: Reason Selection
     print("\nSelect Report Reason:")
     print("1. Spam")
     print("2. Violence")
@@ -93,11 +101,20 @@ async def run():
         print("Invalid choice. Defaulting to Spam (1).")
         reason_code = '1'
 
-    # Create clients
+    # Create clients using input API KEYS
     clients = []
+    print(f"\nLogging in with {len(sessions)} sessions...")
+    
     for idx, sess in enumerate(sessions, start=1):
         try:
-            client = Client(sess, api_id=API_ID, api_hash=API_HASH)
+            # Yahan hum user ka diya hua API ID/Hash use kar rahe hain
+            client = Client(
+                name=f"sess_{idx}", 
+                session_string=sess, 
+                api_id=user_api_id, 
+                api_hash=user_api_hash,
+                in_memory=True # Termux storage save karne ke liye
+            )
             clients.append(client)
         except Exception as e:
             print(f"Session #{idx} create error: {e}")
@@ -108,7 +125,7 @@ async def run():
         try:
             await c.start()
             running.append(c)
-            print(f"Session #{idx} started.")
+            print(f"Session #{idx} started successfully.")
         except Exception as e:
             print(f"Session #{idx} failed to start: {e}")
 
@@ -125,7 +142,7 @@ async def run():
         while sent < total_reports:
             client = running[idx % total_clients]
             try:
-                # Call the new report function
+                # Call the report function
                 await send_report(client, chat_id, message_id, reason_code)
                 sent += 1
                 print(f"[{sent}/{total_reports}] Report sent via session #{(idx % total_clients) + 1}")
@@ -133,7 +150,7 @@ async def run():
                 print(f"Session #{(idx % total_clients) + 1} error: {e}")
             
             idx += 1
-            await asyncio.sleep(0.8) # Thoda delay safe rehta hai
+            await asyncio.sleep(0.8) 
     except KeyboardInterrupt:
         print("Interrupted by user.")
     finally:
@@ -143,7 +160,7 @@ async def run():
                 await c.stop()
             except:
                 pass
-        print("Done. Modified by oxeign")
+        print("Done.")
 
 if __name__ == "__main__":
     asyncio.run(run())
