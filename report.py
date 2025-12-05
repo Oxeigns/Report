@@ -1,12 +1,12 @@
 # report.py
 # Logic to send reports to Telegram servers
-# Developed for OxyReport
+# Modified for OxyReport v2
 
 from pyrogram import Client
 from pyrogram.raw import functions, types
 from pyrogram.errors import RPCError
 
-async def send_report(client: Client, chat_id: int | str, message_id: int, reason_code: str):
+async def send_report(client: Client, chat_id: int | str, message_id: int, reason_code: str, reason_text: str):
     """
     Sends a report for a specific message using the raw Telegram API.
     """
@@ -25,6 +25,10 @@ async def send_report(client: Client, chat_id: int | str, message_id: int, reaso
             reason = types.InputReportReasonPornography()
         elif reason_code == '5':
             reason = types.InputReportReasonFake()
+        elif reason_code == '6':
+            reason = types.InputReportReasonIllegalDrugs()
+        elif reason_code == '7':
+            reason = types.InputReportReasonPersonalDetails()
         else:
             reason = types.InputReportReasonOther()
 
@@ -35,14 +39,15 @@ async def send_report(client: Client, chat_id: int | str, message_id: int, reaso
                 peer=peer,
                 id=[message_id],
                 reason=reason,
-                message="Reported via OxyReport"
+                message=reason_text  # The custom text entered by the user
             )
         )
         return True
 
     except RPCError as e:
         print(f"Telegram Error: {e}")
-        raise e
+        # Return False so main loop knows it failed, but don't crash
+        return False
     except Exception as e:
         print(f"Unknown Error: {e}")
-        raise e
+        return False
