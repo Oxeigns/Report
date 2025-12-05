@@ -1,0 +1,3 @@
+# Add your session strings here, one per line.
+# Example:
+# 1BV... (session string)
